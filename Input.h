@@ -2,85 +2,213 @@
 
 #include <stdint.h>
 
-enum InputKeyID
+enum masEKey
 {
-	KEY_UNKNOWN,
-	KEY_ANYKEY,
-	KEY_A,
-	KEY_B,
-	KEY_C,
-	KEY_D,
-	KEY_E,
-	KEY_F,
-	KEY_G,
-	KEY_H,
-	KEY_I,
-	KEY_J,
-	KEY_K,
-	KEY_L,
-	KEY_M,
-	KEY_N,
-	KEY_O,
-	KEY_P,
-	KEY_Q,
-	KEY_R,
-	KEY_S,
-	KEY_T,
-	KEY_U,
-	KEY_V,
-	KEY_W,
-	KEY_X,
-	KEY_Y,
-	KEY_Z,
+	EKey_Unknown = -1,
 
-	KEY_COUNT
+
+	/*
+	* GAMEPAD BUTTONS & AXES & TRIGGERS
+	*/
+	EKey_Square,
+	EKey_Cross,
+	EKey_Circle,
+	EKey_Triangle,
+	EKey_Start,
+	EKey_Select,
+	EKey_DpadUp,
+	EKey_DpadDown,
+	EKey_DpadRight,
+	EKey_DpadLeft,
+	EKey_L1,
+	EKey_L2,
+	EKey_L3,
+	EKey_R1,
+	EKey_R2,
+	EKey_R3,
+	EKey_LAnalogUp,
+	EKey_LAnalogDown,
+	EKey_LAnalogLeft,
+	EKey_LAnalogRight,
+	EKey_RAnalogUp,
+	EKey_RAnalogDown,
+	EKey_RAnalogLeft,
+	EKey_RAnalogRight,
+	EKey_GamepadCount = EKey_RAnalogRight,
+
+	EKey_Anykey,
+
+	EKey_A,
+	EKey_B,
+	EKey_C,
+	EKey_D,
+	EKey_E,
+	EKey_F,
+	EKey_G,
+	EKey_H,
+	EKey_I,
+	EKey_J,
+	EKey_K,
+	EKey_L,
+	EKey_M,
+	EKey_N,
+	EKey_O,
+	EKey_P,
+	EKey_Q,
+	EKey_R,
+	EKey_S,
+	EKey_T,
+	EKey_U,
+	EKey_V,
+	EKey_W,
+	EKey_X,
+	EKey_Y,
+	EKey_Z,
+
+	EKey_F1,
+	EKey_F2,
+	EKey_F3,
+	EKey_F4,
+	EKey_F5,
+	EKey_F6,
+	EKey_F7,
+	EKey_F8,
+	EKey_F9,
+	EKey_F10,
+	EKey_F11,
+	EKey_F12,
+
+	EKey_NumLock,
+	EKey_Numpad0,
+	EKey_Numpad1,
+	EKey_Numpad2,
+	EKey_Numpad3,
+	EKey_Numpad4,
+	EKey_Numpad5,
+	EKey_Numpad6,
+	EKey_Numpad7,
+	EKey_Numpad8,
+	EKey_Numpad9,
+
+	EKey_Num0,
+	EKey_Num1,
+	EKey_Num2,
+	EKey_Num3,
+	EKey_Num4,
+	EKey_Num5,
+	EKey_Num6,
+	EKey_Num7,
+	EKey_Num8,
+	EKey_Num9,
+
+	EKey_Space,
+	EKey_Enter,
+	EKey_Backspace,
+	EKey_Tab,
+	EKey_PrintScreen,
+	EKey_Insert,
+	EKey_Delete,
+	EKey_Divide,
+	EKey_Multipy,
+	EKey_Subtract,
+	EKey_Addition,
+	EKey_Home,
+	EKey_End,
+	EKey_Escape,
+	EKey_CapsLock,
+
+
+	/*
+	* MOUSE BUTTONS
+	*/
+	EKey_MouseWheelUp,
+	EKey_MouseWheelDown,
+	EKey_MouseLeft,
+	EKey_MouseRight,
+	EKey_MouseMiddle,
+	EKey_MouseX1,
+	EKey_MouseX2,
+
+	EKey_Count
 };
 
-struct InputMouse
+enum masEKeyState
 {
-	float PosX;
-	float PosY;
+	EKeyState_Unknown     = 0,
+	EKeyState_Release     = (1 << 0),
+	EKeyState_Press       = (1 << 1),
+	EKeyState_Repeat      = (1 << 2),
+	EKeyState_DoubleClick = (1 << 3),
+};
 
-	uint8_t ScrollUp : 1;
-	uint8_t ScrollDown : 1;
-	struct
+struct masKeyModifier
+{
+	uint8_t LCtrl : 1;
+	uint8_t RCtrl : 1;
+
+	uint8_t LShift : 1;
+	uint8_t RShift : 1;
+
+	uint8_t LAlt : 1;
+	uint8_t RAlt : 1;
+};
+
+
+enum masEInputUser
+{
+	EInputUser_0,
+	EInputUser_1,
+	EInputUser_2,
+	EInputUser_3,
+
+	EInputUser_Count
+};
+
+
+bool  masInput_Init();
+void  masInput_DeInit();
+void  masInput_Process();
+void  masInput_Reset();
+bool  masInput_IsKey(masEInputUser InputUser, uint32_t Key, uint32_t KeyState);
+float masInput_AxisValue(masEInputUser InputUser, masEKey Key);
+
+
+#if 0
+typedef void(*masActionInputFunc)();
+typedef void(*masAxisInputFunc)(float Scaler);
+
+
+struct masInputComp;
+masInputComp* masInput_CreateInputComp(const char* InputCompName, bool bConsumeInput = false);
+void masInput_AddAction(masInputComp* InputComp, masEKey Key, masEKeyState KeyState, masKeyModifier   Modifier, masActionInputFunc Action);
+void masInput_AddAxis  (masInputComp* InputComp, masEKey Key, float        Scaler,   masAxisInputFunc Axis);
+
+void masInput_PushInputComp(masEInputUser InputUser, masInputComp* InputComp);
+void masInput_PopInputComp(masEInputUser InputUser);
+#endif
+
+#if 0
+void UsageCase()
+{
+	masInputComp* AComp = masInput_CreateInputComp("InputComp_A");
 	{
-		uint8_t Press : 1;
-		uint8_t Release : 1;
-		uint8_t DoubleClick : 1;
-	} Left, Right, Middle;
-};
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_Cross, EKeyState_Press), []() {"Jump";});
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_Square, EKeyState_Press), []() {"Reload";});
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_Circle, EKeyState_Press), []() {"Crouch";});
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_Triangle, EKeyState_Press), []() {"OpenMap";});
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_L1, EKeyState_Press), []() {"Aim";});
+		masInput_AddAction(AComp, masInput_ActionKey(EKey_R1, EKeyState_Press), []() {"Shoot";});
 
-struct InputKeyboard
-{
-	wchar_t Unicode;
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_LAnalogUp, 1.f), [](float) {"MoveToFront";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_LAnalogDown, -1.f), [](float) {"MoveToBack";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_LAnalogRight, 1.f), [](float) {"MoveToRight";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_LAnalogLeft, -1.f), [](float) {"MoveToLeft";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_RAnalogUp, 1.f), [](float) {"RotateCameraUp";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_RAnalogDown, -1.f), [](float) {"RotateCameraDown";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_RAnalogRight, 1.f), [](float) {"RotateCameraRight";});
+		masInput_AddAxis(AComp, masInput_AxisKey(EKey_RAnalogLeft, -1.f), [](float) {"RotateCameraLeft";});
 
-	struct
-	{
-		uint8_t Press : 1;
-		uint8_t Release : 1;
-		uint8_t Repeat : 1;
-	} Keys[KEY_COUNT];
-};
-
-//struct InputData
-//{
-//	union
-//	{
-//		uint8_t Flags;
-//		struct
-//		{
-//			uint8_t LeftCtrl : 1;
-//			uint8_t LeftShift : 1;
-//			uint8_t LeftAlt : 1;
-//			uint8_t RightCtrl : 1;
-//			uint8_t RightShift : 1;
-//			uint8_t RightAlt : 1;
-//		};
-//	} Modifier;
-//};
-
-void  Input_Reset();
-const InputMouse* Input_GetMouse();
-
-
+		masInput_PushInputComp(EInputUser_0, AComp);
+	}
+}
+#endif
