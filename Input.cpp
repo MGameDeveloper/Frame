@@ -4,21 +4,21 @@
 #include <Windows.h>
 #include <Xinput.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 
 #pragma comment(lib, "xinput.lib")
 
-struct masKeyInfo
-{
-	masEKeyState    State;
-	masKeyModifier  Modifier;
-	float           Scaler;
-	float           Time;
-};
+#define KEY_BUF_SIZE (sizeof(uint32_t) * 8)
+typedef uint32_t masKeyBuf[8];
+uint8_t GetByteIdx(masEKey Key) { return (uint8_t)(Key / 32); }
+uint8_t GetBitIdx(masEKey Key)  { return (uint8_t)(Key % 32); }
+
 
 struct masInputUser
 {
-	masKeyInfo *Keys;
-	bool        bActive;
+	masKeyBuf KeyBuf;
+	bool      bActive;
 };
 
 static masInputUser GInputUsers[EInputUser_Count] = {};
@@ -29,28 +29,29 @@ static void masXInput_Update();
 
 bool masInput_Init()
 {
-	GInputUsers[EInputUser_0].Keys = (masKeyInfo*)malloc(sizeof(masKeyInfo) * EKey_Count);
-	GInputUsers[EInputUser_1].Keys = (masKeyInfo*)malloc(sizeof(masKeyInfo) * EKey_GamepadCount);
-	GInputUsers[EInputUser_2].Keys = (masKeyInfo*)malloc(sizeof(masKeyInfo) * EKey_GamepadCount);
-	GInputUsers[EInputUser_3].Keys = (masKeyInfo*)malloc(sizeof(masKeyInfo) * EKey_GamepadCount);
-
-	if (!GInputUsers[EInputUser_0].Keys ||
-		!GInputUsers[EInputUser_1].Keys ||
-		!GInputUsers[EInputUser_2].Keys ||
-		!GInputUsers[EInputUser_3].Keys)
-	{
-		return false;
-	}
-
-	::memset(GInputUsers[EInputUser_0].Keys, 0, sizeof(masKeyInfo) * EKey_Count);
-	::memset(GInputUsers[EInputUser_1].Keys, 0, sizeof(masKeyInfo) * EKey_GamepadCount);
-	::memset(GInputUsers[EInputUser_2].Keys, 0, sizeof(masKeyInfo) * EKey_GamepadCount);
-	::memset(GInputUsers[EInputUser_3].Keys, 0, sizeof(masKeyInfo) * EKey_GamepadCount);
-
 	GInputUsers[EInputUser_0].bActive = true;
 	GInputUsers[EInputUser_1].bActive = false;
 	GInputUsers[EInputUser_2].bActive = false;
 	GInputUsers[EInputUser_3].bActive = false;
+
+	masKeyBuf TempBuf = {};
+	for (int32_t i = 1; i < EKey_Count; ++i)
+	{
+		masEKey Key = (masEKey)i;
+
+		uint8_t Byte = GetByteIdx(Key);
+		uint8_t Bit  = GetBitIdx(Key);
+
+		if (TempBuf[Byte] & (1 << Bit))
+		{
+			printf("Key Dublication happend\n");
+			assert(false && "Key Dublication happend");
+			return false;
+		}
+		else
+			TempBuf[Byte] |= (1 << Bit);
+	}
+
 
 	masXInput_Init();
 
@@ -59,65 +60,65 @@ bool masInput_Init()
 
 void masInput_DeInit()
 {
-	for (int32_t UserIdx = 0; UserIdx < EInputUser_Count; ++UserIdx)
-	{
-		::free(GInputUsers[UserIdx].Keys);
-		GInputUsers[UserIdx].Keys = NULL;
-	}
+
 }
 
-void masInput_OnKey(masEInputUser InputUser, masEKey Key, masEKeyState KeyState)
+void masInput_SetKey(masEInputUser InputUser, masEKey Key, masEKeyState KeyState)
 {
-	if (InputUser < EInputUser_0 || InputUser > EInputUser_3)
-		return;
-	if (Key <= EKey_Unknown || Key >= EKey_Count)
-		return;
-	if (InputUser != EInputUser_0 && Key >= EKey_GamepadCount)
-		return;
-
-	masKeyInfo* KeyInfo = &GInputUsers[InputUser].Keys[Key];
-	KeyInfo->State      = KeyState;
-	KeyInfo->Modifier   = {};
-	KeyInfo->Time       = 0.f;
+	if(KeyState > EKeyState_Release)
+	    GInputUsers[InputUser].KeyBuf[GetByteIdx(Key)] |= (1 << GetBitIdx(Key));
+	else
+		GInputUsers[InputUser].KeyBuf[GetByteIdx(Key)] |= (0 << GetBitIdx(Key));
 }
 
 void masInput_OnAxis(masEInputUser InputUser, masEKey Key, float Scaler)
 {
-	if (InputUser < EInputUser_0 || InputUser > EInputUser_3)
-		return;
-	if (Key <= EKey_Unknown || Key >= EKey_Count)
-		return;
-	if (InputUser != EInputUser_0 && Key >= EKey_GamepadCount)
-		return;
-
-	masKeyInfo* KeyInfo = &GInputUsers[InputUser].Keys[Key];
-	KeyInfo->Scaler     = Scaler;
 }
 
-bool masInput_IsKey(masEInputUser InputUser, uint32_t Key, uint32_t KeyState)
+
+
+
+bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1)
 {
-	if (InputUser < EInputUser_0 || InputUser > EInputUser_3)
-		return false;
-	if (Key <= EKey_Unknown || Key >= EKey_Count)
-		return false;
-	if (InputUser != EInputUser_0 && Key >= EKey_GamepadCount)
-		return false;
-
-	return (GInputUsers[InputUser].Keys[Key].State & KeyState); // IMPLEMENTATION NOT COMPLETE
+	return (GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1)));
 }
+bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2)
+{
+	bool Keys[] =
+	{
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2)))
+	};
+	return (Keys[0] || Keys[1]);
+}
+
+bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3)
+{
+	bool Keys[] =
+	{
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key3)] & (1 << GetBitIdx(Key3)))
+	};
+	return (Keys[0] || Keys[1] || Keys[2]);
+}
+bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4)
+{
+	bool Keys[] =
+	{
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key3)] & (1 << GetBitIdx(Key3))),
+		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key4)] & (1 << GetBitIdx(Key4)))
+	};
+	return (Keys[0] || Keys[1] || Keys[2] || Keys[3]);
+}
+
+
+
 
 float masInput_AxisValue(masEInputUser InputUser, masEKey Key)
 {
-	if (InputUser < EInputUser_0 || InputUser > EInputUser_3)
-		return 0.f;
-	if (Key <= EKey_Unknown || Key >= EKey_Count)
-		return 0.f;
-	if (InputUser != EInputUser_0 && Key >= EKey_GamepadCount)
-		return 0.f;
-
-	if (GInputUsers[InputUser].Keys[Key].State > EKeyState_Release)
-		return GInputUsers[InputUser].Keys[Key].Scaler;
-
 	return 0.f;
 }
 
@@ -128,22 +129,8 @@ void masInput_Process()
 
 void masInput_Reset()
 {
-	for (int32_t UserIdx = 0; UserIdx < EInputUser_Count; ++UserIdx)
-	{
-		if (!GInputUsers[UserIdx].bActive)
-			continue;
-
-		if (UserIdx == 0)
-		{
-			for (int32_t ButtonIdx = 0; ButtonIdx < EKey_Count; ++ButtonIdx)
-				GInputUsers[UserIdx].Keys[ButtonIdx].State = EKeyState_Unknown;
-		}
-		else
-		{
-			for (int32_t ButtonIdx = 0; ButtonIdx < EKey_GamepadCount; ++ButtonIdx)
-				GInputUsers[UserIdx].Keys[ButtonIdx].State = EKeyState_Unknown;
-		}
-	}
+	for (int32_t i = 0; i < EInputUser_Count; ++i)
+		::memset(GInputUsers->KeyBuf, 0, KEY_BUF_SIZE);
 }
 
 
@@ -282,14 +269,14 @@ void masXInput_Update()
 					Gamepad->RepeatTime[ButtonIdx] += RepeatAdvanceTime;
 				else
 				{
-					masInput_OnKey(InputUser, Key, EKeyState_Repeat);
+					masInput_SetKey(InputUser, Key, EKeyState_Repeat);
 					Gamepad->RepeatTime[ButtonIdx] += RepeatInitTime;
 				}
 			}
 			else if (IsReleased)
-				masInput_OnKey(InputUser, Key, EKeyState_Release);
+				masInput_SetKey(InputUser, Key, EKeyState_Release);
 			else if (IsPressed)
-				masInput_OnKey(InputUser, Key, EKeyState_Press);
+				masInput_SetKey(InputUser, Key, EKeyState_Press);
 		}
 
 		::memcpy(Gamepad->LastState, Buttons, sizeof(bool) * EKey_GamepadCount);
@@ -332,13 +319,13 @@ LRESULT masInput_Win32Proc(HWND Hwnd, UINT Msg, WPARAM Wparam, LPARAM Lparam)
 
 		masEKey Key = masInput_ConvertWin32Key(vkCode);
 		if (isKeyReleased)
-			masInput_OnKey(EInputUser_0, Key, EKeyState_Release);
+			masInput_SetKey(EInputUser_0, Key, EKeyState_Release);
 		else
 		{
 			if (wasKeyDown)
-				masInput_OnKey(EInputUser_0, Key, EKeyState_Repeat);
+				masInput_SetKey(EInputUser_0, Key, EKeyState_Repeat);
 			else
-				masInput_OnKey(EInputUser_0, Key, EKeyState_Press);
+				masInput_SetKey(EInputUser_0, Key, EKeyState_Press);
 		}
 	}
 
@@ -366,23 +353,23 @@ LRESULT masInput_Win32Proc(HWND Hwnd, UINT Msg, WPARAM Wparam, LPARAM Lparam)
 	{
 		short Delta = GET_WHEEL_DELTA_WPARAM(Wparam);
 		if (Delta > 0)
-			masInput_OnKey(EInputUser_0, EKey_MouseWheelUp, EKeyState_Press);
+			masInput_SetKey(EInputUser_0, EKey_MouseWheelUp, EKeyState_Press);
 		else if (Delta < 0)
-			masInput_OnKey(EInputUser_0, EKey_MouseWheelDown, EKeyState_Press);
+			masInput_SetKey(EInputUser_0, EKey_MouseWheelDown, EKeyState_Press);
 	}
 		break;
 
-	case WM_LBUTTONDOWN:   masInput_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_Press);       break;
-	case WM_LBUTTONUP:	   masInput_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_Release);     break;
-	case WM_LBUTTONDBLCLK: masInput_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_DoubleClick); break;
+	case WM_LBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_Press);       break;
+	case WM_LBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_Release);     break;
+	case WM_LBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_DoubleClick); break;
 
-	case WM_RBUTTONDOWN:   masInput_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_Press);       break;
-	case WM_RBUTTONUP:	   masInput_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_Release);     break;
-	case WM_RBUTTONDBLCLK: masInput_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_DoubleClick); break;
+	case WM_RBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_Press);       break;
+	case WM_RBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_Release);     break;
+	case WM_RBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_DoubleClick); break;
 
-	case WM_MBUTTONDOWN:   masInput_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Press);       break;
-	case WM_MBUTTONUP:	   masInput_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Release);     break;
-	case WM_MBUTTONDBLCLK: masInput_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_DoubleClick); break;
+	case WM_MBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Press);       break;
+	case WM_MBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Release);     break;
+	case WM_MBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_DoubleClick); break;
 
 	case WM_XBUTTONDOWN:   break;
 	case WM_XBUTTONUP:	   break;
@@ -430,6 +417,17 @@ masEKey masInput_ConvertWin32Key(WPARAM Wparam)
 	case 'Y': return EKey_Y;
 	case 'Z': return EKey_Z;
 
+	case 0x30: return EKey_Num0;
+	case 0x31: return EKey_Num1;
+	case 0x32: return EKey_Num2;
+	case 0x33: return EKey_Num3;
+	case 0x34: return EKey_Num4;
+	case 0x35: return EKey_Num5;
+	case 0x36: return EKey_Num6;
+	case 0x37: return EKey_Num7;
+	case 0x38: return EKey_Num8;
+	case 0x39: return EKey_Num9;
+	
 	case VK_NUMLOCK: return EKey_NumLock;
 	case VK_NUMPAD0: return EKey_Numpad0;
 	case VK_NUMPAD1: return EKey_Numpad1;
@@ -454,6 +452,38 @@ masEKey masInput_ConvertWin32Key(WPARAM Wparam)
 	case VK_F10: return EKey_F10;
 	case VK_F11: return EKey_F11;
 	case VK_F12: return EKey_F12;
+
+	case VK_DECIMAL:  return EKey_Decimal;
+	case VK_PRIOR:    return EKey_PageUp;
+	case VK_NEXT:     return EKey_PageDown;
+	case VK_SPACE:    return EKey_Space;
+	case VK_RETURN:   return EKey_Enter;
+	case VK_BACK:     return EKey_Backspace;
+	case VK_TAB:      return EKey_Tab;
+	case VK_SNAPSHOT: return EKey_PrintScreen;
+	case VK_INSERT:   return EKey_Insert;
+	case VK_DELETE:   return EKey_Delete;
+	case VK_DIVIDE:   return EKey_Divide;
+	case VK_MULTIPLY: return EKey_Multipy;
+	case VK_SUBTRACT: return EKey_Subtract;
+	case VK_ADD:      return EKey_Addition;
+	case VK_HOME:     return EKey_Home;
+	case VK_END:      return EKey_End;
+	case VK_ESCAPE:   return EKey_Escape;
+	case VK_CAPITAL:  return EKey_CapsLock;
+	case VK_UP:       return EKey_ArrowUp;
+	case VK_DOWN:     return EKey_ArrowDown;
+	case VK_LEFT:     return EKey_ArrowLeft;
+	case VK_RIGHT:    return EKey_ArrowRight;
+	case VK_LCONTROL: return EKey_LCtrl;
+	case VK_RCONTROL: return EKey_RCtrl;
+	case VK_LSHIFT:   return EKey_LShift;
+	case VK_RSHIFT:   return EKey_RShift;
+	case VK_LMENU:    return EKey_LAlt;
+	case VK_RMENU:    return EKey_RAlt;
+	case VK_CONTROL:  return EKey_Ctrl;
+	case VK_SHIFT:    return EKey_Shift;
+	case VK_MENU:     return EKey_Alt;
 	}
 
 	return EKey_Unknown;

@@ -4,8 +4,7 @@
 
 enum masEKey
 {
-	EKey_Unknown = -1,
-
+	EKey_Unknown = 0,
 
 	/*
 	* GAMEPAD BUTTONS & AXES & TRIGGERS
@@ -101,6 +100,9 @@ enum masEKey
 	EKey_Num8,
 	EKey_Num9,
 
+	EKey_Decimal,
+	EKey_PageUp,
+	EKey_PageDown,
 	EKey_Space,
 	EKey_Enter,
 	EKey_Backspace,
@@ -117,6 +119,20 @@ enum masEKey
 	EKey_Escape,
 	EKey_CapsLock,
 
+	EKey_ArrowUp,
+	EKey_ArrowDown,
+	EKey_ArrowLeft,
+	EKey_ArrowRight,
+
+	EKey_Ctrl,
+	EKey_Shift,
+	EKey_Alt,
+	EKey_LCtrl,
+	EKey_RCtrl,
+	EKey_LShift,
+	EKey_RShift,
+	EKey_LAlt,
+	EKey_RAlt,
 
 	/*
 	* MOUSE BUTTONS
@@ -141,19 +157,6 @@ enum masEKeyState
 	EKeyState_DoubleClick = (1 << 3),
 };
 
-struct masKeyModifier
-{
-	uint8_t LCtrl : 1;
-	uint8_t RCtrl : 1;
-
-	uint8_t LShift : 1;
-	uint8_t RShift : 1;
-
-	uint8_t LAlt : 1;
-	uint8_t RAlt : 1;
-};
-
-
 enum masEInputUser
 {
 	EInputUser_0,
@@ -169,7 +172,12 @@ bool  masInput_Init();
 void  masInput_DeInit();
 void  masInput_Process();
 void  masInput_Reset();
-bool  masInput_IsKey(masEInputUser InputUser, uint32_t Key, uint32_t KeyState);
+
+bool  masInput_CheckKey(masEInputUser InputUser, masEKey Key1);
+bool  masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2);
+bool  masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3);
+bool  masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4);
+
 float masInput_AxisValue(masEInputUser InputUser, masEKey Key);
 
 
