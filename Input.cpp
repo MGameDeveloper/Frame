@@ -9,21 +9,104 @@
 
 #pragma comment(lib, "xinput.lib")
 
-#define KEY_BUF_SIZE (sizeof(uint32_t) * 8)
-typedef uint32_t masKeyBuf[8];
-uint8_t GetByteIdx(masEKey Key) { return (uint8_t)(Key / 32); }
-uint8_t GetBitIdx(masEKey Key)  { return (uint8_t)(Key % 32); }
+/******************************************************************************************************
+*
+* CODE FOR MAKING EVERY KEY INTO 4 BITS THAT REPRESENTS [ RELEASE, PRESS, REPEAT, DOUBLCLICK ] INSTEAD OF EVERY KEY BEING 2 BYTES [ CURRENT STATE, LAST STATE ]
+*
+*******************************************************************************************************/
+typedef uint32_t masKeyBuf[32];
+uint8_t masKey_GetByteIdx(uint32_t Key)
+{
+	if (Key != EKey_Unknown && Key < EKey_Count)
+		Key--;
+	else
+		return 0;
+
+	return (Key / 8);
+}
+uint8_t masKey_GetBitIdx(uint32_t Key)
+{
+	if (Key != EKey_Unknown && Key < EKey_Count)
+		Key--;
+	else
+		return 0;
+
+	return ((Key % 8) * 4);
+}
+void masKey_ClearBits(masKeyBuf KeyBuf, uint32_t Key)
+{
+	KeyBuf[masKey_GetByteIdx(Key)] &= ~(0x0000000F << masKey_GetBitIdx(Key));
+}
+void masKey_SetBits(masKeyBuf KeyBuf, uint32_t Key, uint32_t State)
+{
+	KeyBuf[masKey_GetByteIdx(Key)] |= ( (State & 0x0000000F) << masKey_GetBitIdx(Key));
+}
+void PrintKeyBits(masKeyBuf KeyBuf, uint32_t Key)
+{
+	uint32_t Count = 0;
+	for (int32_t i = 31; i >= 0; --i)
+	{
+		if ((i != 31) && (Count % 4) == 0)
+			printf(" ");
+
+		if (KeyBuf[masKey_GetByteIdx(Key)] & (1 << i))
+			printf("1");
+		else
+			printf("0");
+
+		Count++;
+	}
+	printf("\n");
+}
+void PrintStateBits(uint8_t State)
+{
+	uint32_t Count = 0;
+	for (int32_t i = 7; i >= 0; --i)
+	{
+		if ((i != 7) && (Count % 4) == 0)
+			printf(" ");
+
+		if (State & (1 << i))
+			printf("1");
+		else
+			printf("0");
+
+		Count++;
+	}
+}
+uint8_t masKey_GetState(masKeyBuf KeyBuf, uint32_t Key)
+{
+	uint8_t ByteIdx = masKey_GetByteIdx(Key);
+	uint8_t BitIdx  = masKey_GetBitIdx(Key);
+	uint8_t State   = (KeyBuf[ByteIdx] >> BitIdx) & 0x0000000F;
+	return State;
+}
+void masKey_SetState(masKeyBuf KeyBuf, uint32_t Key, uint32_t State)
+{
+	masKey_ClearBits(KeyBuf, Key);
+	masKey_SetBits(KeyBuf, Key, State);
+	//PrintKeyBits(KeyBuf, Key);
+}
 
 
+
+/******************************************************************************************************
+*
+* MAS INPUT INTERFACE IMPLEMENTATION
+*
+*******************************************************************************************************/
 struct masInputUser
 {
-	masKeyBuf KeyBuf;
+	masKeyBuf AxisKeyBuf;
+	masKeyBuf EventKeyBuf;
 	bool      bActive;
 };
 
 static masInputUser GInputUsers[EInputUser_Count] = {};
 
-
+/*
+* FORWARD DECLERATION 
+*/
 static void masXInput_Init();
 static void masXInput_Update();
 
@@ -34,6 +117,7 @@ bool masInput_Init()
 	GInputUsers[EInputUser_2].bActive = false;
 	GInputUsers[EInputUser_3].bActive = false;
 
+#if 0 // check key bits overlapping
 	masKeyBuf TempBuf = {};
 	for (int32_t i = 1; i < EKey_Count; ++i)
 	{
@@ -51,7 +135,7 @@ bool masInput_Init()
 		else
 			TempBuf[Byte] |= (1 << Bit);
 	}
-
+#endif
 
 	masXInput_Init();
 
@@ -63,75 +147,106 @@ void masInput_DeInit()
 
 }
 
-void masInput_SetKey(masEInputUser InputUser, masEKey Key, masEKeyState KeyState)
+void masInput_Internal_OnKey(masEInputUser InputUser, uint32_t Key, uint8_t KeyState)
 {
-	if(KeyState > EKeyState_Release)
-	    GInputUsers[InputUser].KeyBuf[GetByteIdx(Key)] |= (1 << GetBitIdx(Key));
-	else
-		GInputUsers[InputUser].KeyBuf[GetByteIdx(Key)] |= (0 << GetBitIdx(Key));
+	masKey_SetState(GInputUsers[InputUser].AxisKeyBuf,  Key, KeyState);
+	masKey_SetState(GInputUsers[InputUser].EventKeyBuf, Key, KeyState);
 }
 
-void masInput_OnAxis(masEInputUser InputUser, masEKey Key, float Scaler)
+void masInput_Internal_OnAxis(masEInputUser InputUser, masEKey Key, float Scaler)
 {
-}
-
-
-
-
-bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1)
-{
-	return (GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1)));
-}
-bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2)
-{
-	bool Keys[] =
-	{
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2)))
-	};
-	return (Keys[0] || Keys[1]);
-}
-
-bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3)
-{
-	bool Keys[] =
-	{
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key3)] & (1 << GetBitIdx(Key3)))
-	};
-	return (Keys[0] || Keys[1] || Keys[2]);
-}
-bool masInput_CheckKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4)
-{
-	bool Keys[] =
-	{
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key1)] & (1 << GetBitIdx(Key1))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key2)] & (1 << GetBitIdx(Key2))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key3)] & (1 << GetBitIdx(Key3))),
-		(GInputUsers[InputUser].KeyBuf[GetByteIdx(Key4)] & (1 << GetBitIdx(Key4)))
-	};
-	return (Keys[0] || Keys[1] || Keys[2] || Keys[3]);
-}
-
-
-
-
-float masInput_AxisValue(masEInputUser InputUser, masEKey Key)
-{
-	return 0.f;
-}
-
-void masInput_Process()
-{
-	masXInput_Update();
 }
 
 void masInput_Reset()
 {
-	for (int32_t i = 0; i < EInputUser_Count; ++i)
-		::memset(GInputUsers->KeyBuf, 0, KEY_BUF_SIZE);
+	for (uint8_t UserIdx = 0; UserIdx < EInputUser_Count; ++UserIdx)
+	{
+		// RESETN ENTIRE EVENT KEY BUF
+		::memset(GInputUsers[UserIdx].EventKeyBuf, 0, sizeof(masKeyBuf));
+
+		// RESET AXIS KEY BUF
+		for (int32_t i = 0; i < EKey_Count; ++i)
+		{
+			uint8_t State = masKey_GetState(GInputUsers[UserIdx].AxisKeyBuf, i);
+			
+			// since os doesnt provide us with release events for thest we will set them manually
+			if (i == EKey_MouseWheelUp || i == EKey_MouseWheelDown)
+			{
+				if (State == EKeyState_Press)
+					masKey_SetState(GInputUsers[UserIdx].AxisKeyBuf, i, EKeyState_Unknown);
+			}
+			else
+			{
+				if (State != EKeyState_Unknown)
+				{
+					if (State == EKeyState_Release || State == EKeyState_DoubleClick)
+						masKey_SetState(GInputUsers[UserIdx].AxisKeyBuf, i, EKeyState_Unknown);
+				}
+			}
+		}
+	}
 }
+
+void masInput_Update()
+{
+	masXInput_Update();
+}
+
+bool masInput_Internal_CheckKey(masKeyBuf TargetKeyBuf, masEKeyState KeyState, bool bAllKeyTrue, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4, masEKey Key5, masEKey Key6, masEKey Key7)
+{
+	uint32_t Keys[7] = { Key1, Key2, Key3, Key4, Key5, Key6, Key7 };
+	uint8_t  KeyCount = 0;
+	uint8_t  ActiveKeyCount = 0;
+
+	for (int32_t i = 0; i < 7; ++i)
+	{
+		if (Keys[i] == EKey_Unknown)
+			continue;
+
+		uint8_t State = masKey_GetState(TargetKeyBuf, Keys[i]);
+		if ((KeyState | State) == KeyState && State != EKey_Unknown)
+			ActiveKeyCount++;
+
+		KeyCount++;
+	}
+
+	if (bAllKeyTrue)
+	{
+		if (KeyCount > 0 && KeyCount == ActiveKeyCount)
+			return true;
+		else
+			return false;
+	}
+	else
+	{
+		if (ActiveKeyCount > 0)
+			return true;
+		else
+			return false;
+	}
+
+	return false;
+}
+bool masInput_OnSingleAxisKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4, masEKey Key5, masEKey Key6, masEKey Key7)
+{
+	return masInput_Internal_CheckKey(GInputUsers[InputUser].AxisKeyBuf, EKeyState_Press | EKeyState_Repeat, false, Key1, Key2, Key3, Key4, Key5, Key6, Key7);
+}
+bool masInput_OnMultiAxisKey(masEInputUser InputUser, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4, masEKey Key5, masEKey Key6, masEKey Key7)
+{
+	return masInput_Internal_CheckKey(GInputUsers[InputUser].AxisKeyBuf, EKeyState_Press | EKeyState_Repeat, true, Key1, Key2, Key3, Key4, Key5, Key6, Key7);
+}
+bool masInput_OnSingleEventKey(masEInputUser InputUser, masEKeyState KeyState, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4, masEKey Key5, masEKey Key6, masEKey Key7)
+{
+	return masInput_Internal_CheckKey(GInputUsers[InputUser].EventKeyBuf, KeyState, false, Key1, Key2, Key3, Key4, Key5, Key6, Key7);
+}
+bool masInput_OnMultiEventKey(masEInputUser InputUser, masEKeyState KeyState, masEKey Key1, masEKey Key2, masEKey Key3, masEKey Key4, masEKey Key5, masEKey Key6, masEKey Key7)
+{
+	return masInput_Internal_CheckKey(GInputUsers[InputUser].EventKeyBuf, KeyState, true, Key1, Key2, Key3, Key4, Key5, Key6, Key7);
+}
+
+
+
+
 
 
 /******************************************************************************************************
@@ -239,16 +354,16 @@ void masXInput_Update()
 		/*
 		* Dispatch axis keys L2, R2, LAnalog, RAnalog
 		*/
-		if (Buttons[EKey_L2])           masInput_OnAxis(InputUser, EKey_L2,           XGamepad->bLeftTrigger / 255.f);
-		if (Buttons[EKey_R2])           masInput_OnAxis(InputUser, EKey_R2,           XGamepad->bRightTrigger / 255.f);
-		if (Buttons[EKey_LAnalogUp])    masInput_OnAxis(InputUser, EKey_LAnalogUp,    XGamepad->sThumbLY /  32767.f);
-		if (Buttons[EKey_LAnalogDown])	masInput_OnAxis(InputUser, EKey_LAnalogDown,  XGamepad->sThumbLY / -32768.f);
-		if (Buttons[EKey_LAnalogRight]) masInput_OnAxis(InputUser, EKey_LAnalogRight, XGamepad->sThumbLX /  32767.f);
-		if (Buttons[EKey_LAnalogLeft])	masInput_OnAxis(InputUser, EKey_LAnalogLeft,  XGamepad->sThumbLX / -32768.f);
-		if (Buttons[EKey_LAnalogUp])	masInput_OnAxis(InputUser, EKey_RAnalogUp,    XGamepad->sThumbRY /  32767.f);
-		if (Buttons[EKey_LAnalogDown])	masInput_OnAxis(InputUser, EKey_RAnalogDown,  XGamepad->sThumbRY / -32768.f);
-		if (Buttons[EKey_LAnalogRight]) masInput_OnAxis(InputUser, EKey_RAnalogRight, XGamepad->sThumbRX /  32767.f);
-		if (Buttons[EKey_LAnalogLeft])	masInput_OnAxis(InputUser, EKey_RAnalogLeft,  XGamepad->sThumbRX / -32768.f);
+		if (Buttons[EKey_L2])           masInput_Internal_OnAxis(InputUser, EKey_L2,           XGamepad->bLeftTrigger / 255.f);
+		if (Buttons[EKey_R2])           masInput_Internal_OnAxis(InputUser, EKey_R2,           XGamepad->bRightTrigger / 255.f);
+		if (Buttons[EKey_LAnalogUp])    masInput_Internal_OnAxis(InputUser, EKey_LAnalogUp,    XGamepad->sThumbLY /  32767.f);
+		if (Buttons[EKey_LAnalogDown])	masInput_Internal_OnAxis(InputUser, EKey_LAnalogDown,  XGamepad->sThumbLY / -32768.f);
+		if (Buttons[EKey_LAnalogRight]) masInput_Internal_OnAxis(InputUser, EKey_LAnalogRight, XGamepad->sThumbLX /  32767.f);
+		if (Buttons[EKey_LAnalogLeft])	masInput_Internal_OnAxis(InputUser, EKey_LAnalogLeft,  XGamepad->sThumbLX / -32768.f);
+		if (Buttons[EKey_LAnalogUp])	masInput_Internal_OnAxis(InputUser, EKey_RAnalogUp,    XGamepad->sThumbRY /  32767.f);
+		if (Buttons[EKey_LAnalogDown])	masInput_Internal_OnAxis(InputUser, EKey_RAnalogDown,  XGamepad->sThumbRY / -32768.f);
+		if (Buttons[EKey_LAnalogRight]) masInput_Internal_OnAxis(InputUser, EKey_RAnalogRight, XGamepad->sThumbRX /  32767.f);
+		if (Buttons[EKey_LAnalogLeft])	masInput_Internal_OnAxis(InputUser, EKey_RAnalogLeft,  XGamepad->sThumbRX / -32768.f);
 
 
 		/*
@@ -269,14 +384,14 @@ void masXInput_Update()
 					Gamepad->RepeatTime[ButtonIdx] += RepeatAdvanceTime;
 				else
 				{
-					masInput_SetKey(InputUser, Key, EKeyState_Repeat);
+					masInput_Internal_OnKey(InputUser, Key, EKeyState_Repeat);
 					Gamepad->RepeatTime[ButtonIdx] += RepeatInitTime;
 				}
 			}
 			else if (IsReleased)
-				masInput_SetKey(InputUser, Key, EKeyState_Release);
+				masInput_Internal_OnKey(InputUser, Key, EKeyState_Release);
 			else if (IsPressed)
-				masInput_SetKey(InputUser, Key, EKeyState_Press);
+				masInput_Internal_OnKey(InputUser, Key, EKeyState_Press);
 		}
 
 		::memcpy(Gamepad->LastState, Buttons, sizeof(bool) * EKey_GamepadCount);
@@ -317,15 +432,26 @@ LRESULT masInput_Win32Proc(HWND Hwnd, UINT Msg, WPARAM Wparam, LPARAM Lparam)
 		WORD repeatCount   = LOWORD(Lparam);                          // repeat count, > 0 if several keydown messages was combined into one message
 		BOOL isKeyReleased = (keyFlags & KF_UP) == KF_UP;             // transition-state flag, 1 on keyup
 
+		//switch (vkCode)
+		//{
+		//case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+		//	vkCode = LOWORD(MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+		//case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+		//	vkCode = LOWORD(MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+		//case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+		//	vkCode = LOWORD(MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+		//	break;
+		//}
+
 		masEKey Key = masInput_ConvertWin32Key(vkCode);
 		if (isKeyReleased)
-			masInput_SetKey(EInputUser_0, Key, EKeyState_Release);
+			masInput_Internal_OnKey(EInputUser_0, Key, EKeyState_Release);
 		else
 		{
 			if (wasKeyDown)
-				masInput_SetKey(EInputUser_0, Key, EKeyState_Repeat);
+				masInput_Internal_OnKey(EInputUser_0, Key, EKeyState_Repeat);
 			else
-				masInput_SetKey(EInputUser_0, Key, EKeyState_Press);
+				masInput_Internal_OnKey(EInputUser_0, Key, EKeyState_Press);
 		}
 	}
 
@@ -353,23 +479,23 @@ LRESULT masInput_Win32Proc(HWND Hwnd, UINT Msg, WPARAM Wparam, LPARAM Lparam)
 	{
 		short Delta = GET_WHEEL_DELTA_WPARAM(Wparam);
 		if (Delta > 0)
-			masInput_SetKey(EInputUser_0, EKey_MouseWheelUp, EKeyState_Press);
+			masInput_Internal_OnKey(EInputUser_0, EKey_MouseWheelUp, EKeyState_Press);
 		else if (Delta < 0)
-			masInput_SetKey(EInputUser_0, EKey_MouseWheelDown, EKeyState_Press);
+			masInput_Internal_OnKey(EInputUser_0, EKey_MouseWheelDown, EKeyState_Press);
 	}
 		break;
 
-	case WM_LBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_Press);       break;
-	case WM_LBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_Release);     break;
-	case WM_LBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseLeft, EKeyState_DoubleClick); break;
-
-	case WM_RBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_Press);       break;
-	case WM_RBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_Release);     break;
-	case WM_RBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseRight, EKeyState_DoubleClick); break;
-
-	case WM_MBUTTONDOWN:   masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Press);       break;
-	case WM_MBUTTONUP:	   masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Release);     break;
-	case WM_MBUTTONDBLCLK: masInput_SetKey(EInputUser_0, EKey_MouseMiddle, EKeyState_DoubleClick); break;
+	case WM_LBUTTONDOWN:   masInput_Internal_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_Press);       break;
+	case WM_LBUTTONUP:	   masInput_Internal_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_Release);     break;
+	case WM_LBUTTONDBLCLK: masInput_Internal_OnKey(EInputUser_0, EKey_MouseLeft, EKeyState_DoubleClick); break;
+						   
+	case WM_RBUTTONDOWN:   masInput_Internal_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_Press);       break;
+	case WM_RBUTTONUP:	   masInput_Internal_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_Release);     break;
+	case WM_RBUTTONDBLCLK: masInput_Internal_OnKey(EInputUser_0, EKey_MouseRight, EKeyState_DoubleClick); break;
+						   
+	case WM_MBUTTONDOWN:   masInput_Internal_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Press);       break;
+	case WM_MBUTTONUP:	   masInput_Internal_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_Release);     break;
+	case WM_MBUTTONDBLCLK: masInput_Internal_OnKey(EInputUser_0, EKey_MouseMiddle, EKeyState_DoubleClick); break;
 
 	case WM_XBUTTONDOWN:   break;
 	case WM_XBUTTONUP:	   break;
