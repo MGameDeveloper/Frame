@@ -33,7 +33,6 @@ enum masEKey
 	EKey_RAnalogDown,
 	EKey_RAnalogLeft,
 	EKey_RAnalogRight,
-	EKey_GamepadCount = EKey_RAnalogRight,
 
 	EKey_Anykey,
 
@@ -138,31 +137,34 @@ enum masEKey
 	EKey_Count
 };
 
-enum masEKeyModifier_
+enum masEKeyMod
 {
 	EKeyMod_None,
 
-	EKeyMod_Ctrl   = (1 << 0),
-	EKeyMod_LCtrl  = (1 << 1),
-	EKeyMod_RCtrl  = (1 << 2),
-	EKeyMod_Shift  = (1 << 3),
-	EKeyMod_LShift = (1 << 4),
-	EKeyMod_RShift = (1 << 5),
-	EKeyMod_Alt    = (1 << 6),
-	EKeyMod_LAlt   = (1 << 7),
-	EKeyMod_RAlt   = (1 << 8),
-};
-typedef uint32_t masEKeyModifier;
+	EKeyMod_Ctrl   = ( 1 << 0),
+	EKeyMod_LCtrl  = ( 1 << 1),
+	EKeyMod_RCtrl  = ( 1 << 2),
+	EKeyMod_Shift  = ( 1 << 3),
+	EKeyMod_LShift = ( 1 << 4),
+	EKeyMod_RShift = ( 1 << 5),
+	EKeyMod_Alt    = ( 1 << 6),
+	EKeyMod_LAlt   = ( 1 << 7),
+	EKeyMod_RAlt   = ( 1 << 8),
 
-enum masEKeyState_
+	EKeyMod_Count = 9
+};
+
+
+enum masEKeyState
 {
-	EKeyState_Unknown     = 0,
+	EKeyState_None        = 0,
 	EKeyState_Release     = (1 << 0),
 	EKeyState_Press       = (1 << 1),
 	EKeyState_Repeat      = (1 << 2),
 	EKeyState_DoubleClick = (1 << 3),
+
+	EKeyState_Count = 4
 };
-typedef uint32_t masEKeyState;
 
 enum masEInputUser
 {
@@ -173,3 +175,6 @@ enum masEInputUser
 
 	EInputUser_Count
 };
+
+
+#define EKey_GamepadCount (EKey_RAnalogRight + 1)

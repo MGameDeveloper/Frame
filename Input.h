@@ -1,35 +1,102 @@
 #pragma once
 
-#include "Input/masInputCommon.h"
+#include "masInputCommon.h"
 
 
 bool  masInput_Init();
 void  masInput_DeInit();
-void  masInput_Reset();
 void  masInput_Update();
 
-bool  masInput_OnSingleAxisKey(masEInputUser InputUser, masEKey Key1, masEKey Key2 = EKey_Unknown, masEKey Key3 = EKey_Unknown, masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
-bool  masInput_OnMultiAxisKey (masEInputUser InputUser,masEKey Key1, masEKey Key2, masEKey Key3 = EKey_Unknown,masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
+const char* masInput_KeyName   (masEKey      Key);
+const char* masInput_KeyModName(masEKeyMod   KeyMod);
+const char* masInput_KeyState  (masEKeyState KeyState);
 
-bool  masInput_OnSingleEventKey(masEInputUser InputUser, masEKeyState KeyState, masEKey Key1, masEKey Key2 = EKey_Unknown, masEKey Key3 = EKey_Unknown, masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
-bool  masInput_OnMultiEventKey (masEInputUser InputUser, masEKeyState KeyState, masEKey Key1, masEKey Key2, masEKey Key3 = EKey_Unknown, masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
-
-
-/**************************************************************************************************************
-* NEW API
-***************************************************************************************************************/
-struct masInputKey 
+/***********************************************************************************************************************************************
+* 
+************************************************************************************************************************************************/
+struct masAxisKeyDesc;
+struct masAxisKey;
+struct masVec3
 {
-	masEInputUser InputUser;
-	masEKey       Keys[7];
-	uint32_t      Modifiers;
-	uint8_t       KeyCount;
-	bool          bAllKeysMustBeActive;
+	float x, y, z;
 };
 
-masInputKey masInput_CreateAxisKey  (masEInputUser InputUser, bool bAllKeysMustBeActive, masEKeyModifier Mods, masEKey Key1, masEKey Key2 = EKey_Unknown, masEKey Key3 = EKey_Unknown, masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
-masInputKey masInput_CreateActionKey(masEInputUser InputUser, bool bAllKeysMustBeActive, masEKeyModifier Mods, masEKeyState KeyState, masEKey Key1, masEKey Key2 = EKey_Unknown, masEKey Key3 = EKey_Unknown, masEKey Key4 = EKey_Unknown, masEKey Keys5 = EKey_Unknown, masEKey Key6 = EKey_Unknown, masEKey Key7 = EKey_Unknown);
-bool masInput_OnKey(masInputKey InputKey);
+masAxisKeyDesc* masInput_DescribeAxisKey(bool MustAllBeActive, float AxisX, float AxisY, float AxisZ, uint16_t KeyMod, const char* KeyListFmt, ...);
+masAxisKey*     masInput_CreateAxisKey  (const char* Name, masAxisKeyDesc** AxisKeyDescList, uint32_t ListCount);
+masVec3*        masInput_OnAxisKey      (masEInputUser InputUser, masAxisKey* AxisKey);
+
+#define MAS_DEF_AXIS_KEY(ALL_KEY_MUST_ACTIVE, AXIS_X, AXIS_Y, AXIS_Z, KEY_MOD, ...) masInput_DescribeAxisKey(ALL_KEY_MUST_ACTIVE, AXIS_X, AXIS_Y, AXIS_Z, KEY_MOD, #__VA_ARGS__##"\n", __VA_ARGS__)
+#define MAS_DECLARE_AXIS_KEY(NAME, ...)\
+    masAxisKeyDesc *AxisKeyDesc_##NAME[] = { __VA_ARGS__ };\
+    masAxisKey     *NAME                 = masInput_CreateAxisKey(#NAME, AxisKeyDesc_##NAME, sizeof(AxisKeyDesc_##NAME)/sizeof(AxisKeyDesc_##NAME[0]))
+
+
+
+
+/***********************************************************************************************************************************************
+*
+************************************************************************************************************************************************/
+struct masEventKeyDesc;
+struct masEventKey;
+
+masEventKeyDesc* masInput_DescribeEventKey(bool MustAllBeActive, uint16_t KeyMod, uint8_t KeyState, const char* KeyListFmt, ...);
+masEventKey*     masInput_CreateEventKey(const char* Name, masEventKeyDesc** EventKeyDescList, uint32_t ListCount);
+bool             masInput_OnEventKey(masEInputUser InputUser, masEventKey* EventKey);
+
+#define MAS_DEF_EVENT_KEY(ALL_KEY_MUST_ACTIVE, KEY_MOD, KEY_STATE, ...) masInput_DescribeEventKey(ALL_KEY_MUST_ACTIVE, KEY_MOD, KEY_STATE, #__VA_ARGS__##"\n", __VA_ARGS__)
+#define MAS_DECLARE_EVENT_KEY(NAME, ...)\
+    masEventKeyDesc* EventKeyDesc_##NAME[] = { __VA_ARGS__ };\
+    masEventKey*     NAME                  = masInput_CreateEventKey(#NAME, EventKeyDesc_##NAME, sizeof(EventKeyDesc_##NAME)/sizeof(EventKeyDesc_##NAME[0]))
+
+
+
+
+/***********************************************************************************************************************************************
+*
+************************************************************************************************************************************************/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #if 0
