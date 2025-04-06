@@ -1,3 +1,7 @@
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define masAddrFrom(type, ptr, offset) (type*)(((uint8_t*)ptr) + offset)
 #define MAS_POOL_TAG ".masPool"
@@ -13,13 +17,13 @@ struct masItem
 
 struct masPool
 {
-    char        Tag[8];
-    const char *Name;
-    uint8_t    *Items;
-	uint32_t    ItemSize;
-	uint32_t    Capacity;
-	uint32_t    MaxUsedNum;
-    uint32_T    UsedNum;
+    char      Tag[8];
+    char     *Name;
+    uint8_t  *Items;
+	uint32_t  ItemSize;
+	uint32_t  Capacity;
+	uint32_t  MaxUsedNum;
+    uint32_t  UsedNum;
 };
 
 
@@ -39,7 +43,7 @@ masPool* masPool_Create(const char *Name, uint32_t ItemCount, uint32_t ItemSize)
 	    return NULL;
 	::memset(Pool, 0, MemSize);
 	
-	Pool->Name     = masAddrFrom(const char, Pool, sizeof(masPool));
+	Pool->Name     = masAddrFrom(char, Pool, sizeof(masPool));
 	Pool->Items    = masAddrFrom(uint8_t, Pool->Name, NameLen);
 	Pool->ItemSize = ItemSize;
 	Pool->Capacity = ItemCount;
@@ -48,11 +52,13 @@ masPool* masPool_Create(const char *Name, uint32_t ItemCount, uint32_t ItemSize)
 
 	return Pool;
 }
-
 void masPool_Destroy(masPool** Pool)
 {
     if(!Pool || !(*Pool))
 	    return;
+    if(::strcmp((*Pool)->Tag, MAS_POOL_TAG) != 0)
+        return;
+    printf("Pool[ %s ]: Destroyed\n", (*Pool)->Name);
 	::free(*Pool);
 	*Pool = NULL;
 }
@@ -61,7 +67,6 @@ void masPool_Destroy(masPool** Pool)
 /****************************************************************
 *
 *****************************************************************/
-
 void* masPool_NewItem(masPool** Pool)
 {
     if(!Pool || !(*Pool))
@@ -107,17 +112,16 @@ void masPool_FreeItem(void** Item)
 	Header->RefCount--;
 	if(Header->RefCount <= 0)
 	{
-	    *Item = NULL;
-        Header->Pool->UsedNum--;
-	    ::memset(*Item, 0, Header->Pool->ItemSize);
+        Header->Owner->UsedNum--;
+	    ::memset(*Item, 0, Header->Owner->ItemSize);
         printf("Pool[ %s ]: Item Freed\n", Header->Owner->Name);
 	}
+
+    *Item = NULL;
 }
 
 
-
-void mas_test_main()
-{
-    masPool* InputCompPool = masPool_Create("InputComp", 16, 16);
-    masInputComp* Comp = masPool_NewItem(NULL);
-}
+/****************************************************************
+*
+*****************************************************************/
+void* masPool_CopyItem
