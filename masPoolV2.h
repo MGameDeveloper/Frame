@@ -124,4 +124,89 @@ void masPool_FreeItem(void** Item)
 /****************************************************************
 *
 *****************************************************************/
-void* masPool_CopyItem
+void* masPool_CopyItem(void* Item)
+{
+    if(!Item)
+        return NULL;
+
+    masItem* Header = masAddrFrom(masItem, Item, sizeof(masItem));
+    if(::strcmp(Header->Owner->Tag, MAS_POOL_TAG) != 0)
+        return NULL;
+    Header->RefCount++;
+    return Item;
+}
+
+
+
+
+
+/***************************************************************************************************************************
+*
+****************************************************************************************************************************/
+
+struct masInputAction
+{
+    char      Name[32];
+    void     *Func;
+    uint32_t *Key;
+    uint32_t  KeyCount;
+    uint32_t  KeyMod;
+    uint32_t  KeyState;
+    bool      bAllKeyMustBeActive;
+};
+
+struct masInputAxis
+{
+    char      Name[32];
+    void     *Func;
+    uint32_t *Key;
+    uint32_t  KeyCount;
+    float     AxisValue;
+    uint32_t  KeyMod;
+    bool      bAllKeyMustBeActive;
+};
+
+struct masInputComp
+{
+    char            Name[32];
+    masInputAction *Actions;
+    masInputAxis   *Axes;
+    uint32_t        ActionCount;
+    uint32_t        AxisCount;
+    bool            bConsumeEvent;
+    bool            bBlockInput;
+};
+
+struct masInputCompStack
+{
+    masInputComp *Comps;
+    uint32_t      PushIdx;
+};
+
+/***************************************************************************************************************************
+*
+****************************************************************************************************************************/
+
+masPool *InputActionPool = masPool_Create("masInputAction", 32, sizeof(masInputAction));
+masPool *InputAxisPool   = masPool_Create("masInputAxis",   32, sizeof(masInputAxis));
+masPool *InputCompPool   = masPool_Create("masInputComp",   32, sizeof(masInputComp));
+masInputCompStack InputCompStack[4] = { 0 }; // 4 Users Max
+
+masInputComp* masInputComp_Create(const char* Name, bool bConsumeEvent, bool bBlockInput)
+{
+    masInputComp* Comp = (masInputComp*)masPool_NewItem(&InputCompPool);
+    if(!Comp)
+        return NULL;
+    Comp->bBlockInput   = bBlockInput;
+    Comp->bConsumeEvent = bConsumeEvent;
+    return Comp;
+}
+void masInputComp_Destroy(masInputComp** InputComp)
+{
+    masPool_FreeItem((void**)&(*InputComp));
+}
+
+void masInputComp_AddAction(masInputComp* Comp, const char* Name, uint32_t KeyMod, uint32_t KeyState, const char* KeyListFmt, ...)
+{
+    
+}
